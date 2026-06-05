@@ -358,7 +358,8 @@ inputLink.addEventListener('input', async (e) => {
             
             let tracks = albumData.tracks.items.map(t => ({
                 id: t.id,
-                title: t.name
+                title: t.name,
+                artists: artist
             }));
 
             // Save new album
@@ -408,7 +409,7 @@ function renderTracks(album) {
             </div>
             <div class="flex-1 min-w-0 pr-4">
                 <div class="text-base font-semibold text-white truncate group-hover:text-spotify transition-colors">${track.title}</div>
-                <div class="text-sm text-neutral-400 truncate mt-0.5">${track.artists}</div>
+                <div class="text-sm text-neutral-400 truncate mt-0.5">${track.artists || album.artist}</div>
             </div>
             ${adminPassword ? `
             <div class="w-6 flex items-center justify-center drag-handle cursor-grab text-neutral-500 hover:text-white transition-colors">

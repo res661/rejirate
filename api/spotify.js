@@ -25,9 +25,21 @@ export default async function handler(req, res) {
         let artist = "Spotify Artist";
         let coverUrl = "https://via.placeholder.com/300?text=No+Cover";
 
+        function decodeHtmlEntities(str) {
+            if (!str) return str;
+            return str.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+                      .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+                      .replace(/&amp;/g, '&')
+                      .replace(/&lt;/g, '<')
+                      .replace(/&gt;/g, '>')
+                      .replace(/&quot;/g, '"')
+                      .replace(/&#39;/g, "'")
+                      .replace(/&apos;/g, "'");
+        }
+
         const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
         if (titleMatch) {
-            const rawTitle = titleMatch[1]; // "MAID OF HONOUR - Album by Drake | Spotify"
+            const rawTitle = decodeHtmlEntities(titleMatch[1]); // "MAID OF HONOUR - Album by Drake | Spotify"
             const parts = rawTitle.split(" - Album by ");
             if (parts.length > 1) {
                 title = parts[0].trim();
@@ -50,7 +62,7 @@ export default async function handler(req, res) {
         if (tracksRaw.length > 0) {
             tracks = tracksRaw.map((m, i) => ({
                 id: m[1],
-                name: m[2].replace(/&amp;/g, '&')
+                name: decodeHtmlEntities(m[2])
             }));
         } else {
             // Фолбек (на всякий случай, если структура Spotify поменяется)
