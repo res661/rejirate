@@ -124,50 +124,25 @@ inputLink.addEventListener('input', async (e) => {
                 return;
             }
 
-            // 1. Fetch from Spotify oEmbed directly (It supports CORS!)
-            const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(val)}`;
-            const oembedRes = await fetch(oembedUrl);
+            // Fetch Album Data through Vercel Serverless Function
+            const apiUrl = `/api/spotify?albumId=${albumId}`;
+            const albumRes = await fetch(apiUrl);
             
-            if (!oembedRes.ok) throw new Error("Failed to fetch Spotify oEmbed");
-            
-            const oembedData = await oembedRes.json();
-            const title = oembedData.title || "Unknown Album";
-            const coverUrl = oembedData.thumbnail_url || "https://via.placeholder.com/300?text=No+Cover";
-            
-            let tracks = [];
-            let artist = "Spotify Artist";
-
-            // 2. Search iTunes API for the tracklist (No API Key required, CORS allowed)
-            try {
-                // Try to find the album on iTunes by title
-                const itunesSearchRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(title)}&entity=album&limit=1`);
-                const itunesSearchData = await itunesSearchRes.json();
-                
-                if (itunesSearchData.results && itunesSearchData.results.length > 0) {
-                    const albumData = itunesSearchData.results[0];
-                    artist = albumData.artistName;
-                    
-                    // Fetch tracks for this album
-                    const lookupRes = await fetch(`https://itunes.apple.com/lookup?id=${albumData.collectionId}&entity=song`);
-                    const lookupData = await lookupRes.json();
-                    
-                    // Filter out the album itself (wrapperType='collection') and keep only tracks
-                    const songs = lookupData.results.filter(r => r.wrapperType === 'track');
-                    if (songs.length > 0) {
-                        tracks = songs.map((s, index) => ({
-                            id: `t_${s.trackId}_${index}`,
-                            title: s.trackName
-                        }));
-                    }
-                }
-            } catch (itunesErr) {
-                console.warn("iTunes track search failed, using fallback tracks.", itunesErr);
+            if (!albumRes.ok) {
+                const errorData = await albumRes.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to fetch Album via Vercel API");
             }
-
-            // Fallback if iTunes didn't find the tracks
-            if (tracks.length === 0) {
-                tracks = Array.from({length: 12}).map((_, i) => ({ id: `t_${i}`, title: `Трек ${i+1} (Не найден)`}));
-            }
+            
+            const albumData = await albumRes.json();
+            
+            const title = albumData.name;
+            const coverUrl = albumData.images && albumData.images.length > 0 ? albumData.images[0].url : "https://via.placeholder.com/300?text=No+Cover";
+            const artist = albumData.artists && albumData.artists.length > 0 ? albumData.artists[0].name : "Spotify Artist";
+            
+            let tracks = albumData.tracks.items.map(t => ({
+                id: t.id,
+                title: t.name
+            }));
 
             // Save new album
             const newAlbum = {
