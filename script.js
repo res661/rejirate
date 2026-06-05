@@ -199,14 +199,13 @@ function updateAdminUI() {
 document.addEventListener('keydown', (e) => {
     if (adminPassword || adminModal.classList.contains('opacity-0') === false) return; // Ignore if already admin or modal is open
     
-    // Keep only letters for the secret code to make it robust
-    if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
+    if (e.key && e.key.length === 1) {
         secretBuffer += e.key.toLowerCase();
-        if (secretBuffer.length > 12) {
-            secretBuffer = secretBuffer.slice(-12);
+        if (secretBuffer.length > 20) {
+            secretBuffer = secretBuffer.slice(-20);
         }
         
-        if (secretBuffer === 'adminrejiboi') {
+        if (secretBuffer.includes('admin') || secretBuffer.includes('фвьшт')) {
             secretBuffer = "";
             adminModal.classList.remove('hidden');
             setTimeout(() => {
