@@ -171,6 +171,7 @@ window.selectAlbum = function(id) {
     renderTracks(album);
     
     emptyState.classList.add('hidden');
+    albumView.classList.remove('hidden');
     searchHeader.classList.toggle('hidden', !!currentAlbumId || !adminPassword);
     
     // Hide delete button and drag handles if not admin
