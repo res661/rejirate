@@ -143,7 +143,7 @@ if (mobileSidebarSearch) {
 function showEmptyState() {
     albumView.classList.add('hidden');
     emptyState.classList.remove('hidden');
-    searchHeader.classList.remove('hidden');
+    searchHeader.classList.toggle('hidden', !adminPassword);
     bgBlur.style.backgroundImage = 'none';
     currentAlbumId = null;
 }
