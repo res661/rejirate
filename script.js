@@ -192,7 +192,10 @@ function updateAdminUI() {
     }
     
     deleteAlbumBtn.style.display = adminPassword ? 'block' : 'none';
-    renderTracks(myAlbums.find(a => a.id === currentAlbumId));
+    const selectedAlbum = myAlbums.find(a => a.id === currentAlbumId);
+    if (selectedAlbum) {
+        renderTracks(selectedAlbum);
+    }
 }
 
 // Secret key sequence logic
@@ -371,6 +374,8 @@ inputLink.addEventListener('input', async (e) => {
 let dragSrcEl = null;
 
 function renderTracks(album) {
+    if (!album || !album.tracks) return;
+    
     tracksList.innerHTML = '';
     
     album.tracks.forEach((track) => {
