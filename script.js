@@ -1,6 +1,7 @@
 // State Management
-let myAlbums = JSON.parse(localStorage.getItem('my_spotify_albums')) || [];
+let myAlbums = [];
 let currentAlbumId = null;
+let adminPassword = localStorage.getItem('rejirate_admin_pwd') || null;
 
 // DOM Elements
 const inputLink = document.getElementById('spotify-link');
@@ -33,6 +34,12 @@ const deleteModal = document.getElementById('delete-modal');
 const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
+const adminLoginBtn = document.getElementById('admin-login-btn');
+const adminModal = document.getElementById('admin-modal');
+const adminPasswordInput = document.getElementById('admin-password-input');
+const cancelAdminBtn = document.getElementById('cancel-admin-btn');
+const confirmAdminBtn = document.getElementById('confirm-admin-btn');
+
 let sidebarSearchQuery = "";
 
 // Mobile Menu
@@ -62,8 +69,19 @@ if (logoBtnMobile) {
 }
 
 // Initialization
-function init() {
+async function init() {
+    try {
+        const res = await fetch('/api/getAlbums');
+        if (res.ok) {
+            myAlbums = await res.json();
+        }
+    } catch (e) {
+        console.error("Failed to load global albums", e);
+    }
+    
+    updateAdminUI();
     renderSidebar();
+
     if (myAlbums.length > 0) {
         selectAlbum(myAlbums[0].id);
     } else {
@@ -139,9 +157,78 @@ window.selectAlbum = function(id) {
     renderTracks(album);
     
     emptyState.classList.add('hidden');
-    searchHeader.classList.add('hidden');
-    albumView.classList.remove('hidden');
+    searchHeader.classList.toggle('hidden', !!currentAlbumId || !adminPassword);
+    
+    // Hide delete button and drag handles if not admin
+    if (adminPassword) {
+        deleteAlbumBtn.style.display = 'block';
+    } else {
+        deleteAlbumBtn.style.display = 'none';
+    }
 }
+
+function updateAdminUI() {
+    if (adminPassword) {
+        if(adminLoginBtn) adminLoginBtn.innerHTML = '<i data-lucide="unlock" class="w-3 h-3 text-spotify"></i><span class="text-spotify">Владелец онлайн</span>';
+    } else {
+        if(adminLoginBtn) adminLoginBtn.innerHTML = '<i data-lucide="lock" class="w-3 h-3"></i><span>Вход для владельца</span>';
+    }
+    lucide.createIcons();
+    
+    // Update visibility of elements
+    if (currentAlbumId) {
+        searchHeader.classList.add('hidden');
+    } else {
+        searchHeader.classList.toggle('hidden', !adminPassword);
+    }
+    
+    deleteAlbumBtn.style.display = adminPassword ? 'block' : 'none';
+    renderTracks(myAlbums.find(a => a.id === currentAlbumId));
+}
+
+// Admin Login Logic
+if (adminLoginBtn) {
+    adminLoginBtn.addEventListener('click', () => {
+        if (adminPassword) {
+            // Logout
+            adminPassword = null;
+            localStorage.removeItem('rejirate_admin_pwd');
+            updateAdminUI();
+            toastMessage.textContent = "Вы вышли из админки";
+            showToast(false);
+            return;
+        }
+        adminModal.classList.remove('hidden');
+        setTimeout(() => {
+            adminModal.classList.remove('opacity-0');
+            const panel = adminModal.querySelector('.glass-panel');
+            if(panel) panel.classList.remove('scale-95');
+            adminPasswordInput.focus();
+        }, 10);
+    });
+}
+
+function closeAdminModal() {
+    adminModal.classList.add('opacity-0');
+    const panel = adminModal.querySelector('.glass-panel');
+    if(panel) panel.classList.add('scale-95');
+    setTimeout(() => {
+        adminModal.classList.add('hidden');
+        adminPasswordInput.value = '';
+    }, 300);
+}
+
+cancelAdminBtn.addEventListener('click', closeAdminModal);
+confirmAdminBtn.addEventListener('click', () => {
+    adminPassword = adminPasswordInput.value.trim();
+    if (adminPassword) {
+        localStorage.setItem('rejirate_admin_pwd', adminPassword);
+        updateAdminUI();
+        closeAdminModal();
+        toastMessage.textContent = "Режим владельца включен!";
+        showToast(false);
+    }
+});
 
 // Delete current album modal logic
 deleteAlbumBtn.addEventListener('click', () => {
@@ -262,21 +349,25 @@ function renderTracks(album) {
                 <div class="text-base font-semibold text-white truncate group-hover:text-spotify transition-colors">${track.title}</div>
                 <div class="text-sm text-neutral-400 truncate">${album.artist}</div>
             </div>
+            ${adminPassword ? `
             <div class="w-6 flex items-center justify-center drag-handle text-neutral-500 hover:text-white">
                 <i data-lucide="grip-vertical" class="w-5 h-5"></i>
             </div>
+            ` : ''}
         `;
 
-        li.addEventListener('dragstart', handleDragStart);
-        li.addEventListener('dragenter', handleDragEnter);
-        li.addEventListener('dragover', handleDragOver);
-        li.addEventListener('dragleave', handleDragLeave);
-        li.addEventListener('drop', handleDrop);
-        li.addEventListener('dragend', handleDragEnd);
+        if (adminPassword) {
+            li.addEventListener('dragstart', handleDragStart);
+            li.addEventListener('dragenter', handleDragEnter);
+            li.addEventListener('dragover', handleDragOver);
+            li.addEventListener('dragleave', handleDragLeave);
+            li.addEventListener('drop', handleDrop);
+            li.addEventListener('dragend', handleDragEnd);
 
-        li.addEventListener('touchstart', handleTouchStart, {passive: false});
-        li.addEventListener('touchmove', handleTouchMove, {passive: false});
-        li.addEventListener('touchend', handleTouchEnd);
+            li.addEventListener('touchstart', handleTouchStart, {passive: false});
+            li.addEventListener('touchmove', handleTouchMove, {passive: false});
+            li.addEventListener('touchend', handleTouchEnd);
+        }
 
         tracksList.appendChild(li);
     });
@@ -371,8 +462,43 @@ function handleTouchEnd(e) {
 }
 
 // Saving & Notifications
+async function saveToGlobalDB() {
+    if (!adminPassword) return;
+
+    try {
+        const res = await fetch('/api/saveAlbums', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminPassword}`
+            },
+            body: JSON.stringify({ albums: myAlbums })
+        });
+
+        if (!res.ok) {
+            if (res.status === 401) {
+                adminPassword = null;
+                localStorage.removeItem('rejirate_admin_pwd');
+                updateAdminUI();
+                toastMessage.textContent = "Неверный пароль!";
+                showToast(true);
+            } else {
+                toastMessage.textContent = "Ошибка сохранения на сервер";
+                showToast(true);
+            }
+        } else {
+            toastMessage.textContent = "Сохранено на сервере!";
+            showToast(false);
+        }
+    } catch (e) {
+        console.error(e);
+        toastMessage.textContent = "Ошибка сети";
+        showToast(true);
+    }
+}
+
 function saveCurrentAlbumOrder() {
-    if (!currentAlbumId) return;
+    if (!currentAlbumId || !adminPassword) return;
     
     // Extract new DOM order
     const newOrderIds = Array.from(tracksList.children).map(li => li.dataset.id);
@@ -382,15 +508,13 @@ function saveCurrentAlbumOrder() {
     if (albumIndex !== -1) {
         const oldTracks = myAlbums[albumIndex].tracks;
         myAlbums[albumIndex].tracks = newOrderIds.map(id => oldTracks.find(t => t.id === id));
-        saveToLocalStorage();
+        saveToGlobalDB();
     }
-    
-    toastMessage.textContent = "Порядок сохранен!";
-    showToast(false);
 }
 
 function saveToLocalStorage() {
-    localStorage.setItem('my_spotify_albums', JSON.stringify(myAlbums));
+    // We now save to the global DB
+    saveToGlobalDB();
 }
 
 let toastTimeout = null;
