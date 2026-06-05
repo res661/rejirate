@@ -470,10 +470,8 @@ async function saveToGlobalDB() {
                 toastMessage.textContent = "Ошибка сохранения на сервер";
                 showToast(true);
             }
-        } else {
-            toastMessage.textContent = "Сохранено на сервере!";
-            showToast(false);
         }
+        // Success case is now silent to prevent visual spam on every drag
     } catch (e) {
         console.error(e);
         toastMessage.textContent = "Ошибка сети";
