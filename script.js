@@ -399,8 +399,7 @@ function renderTracks(album) {
     
     album.tracks.forEach((track) => {
         const li = document.createElement('li');
-        li.className = 'track-row flex items-center px-4 py-3 select-none group';
-        // Remove native draggable
+        li.className = `track-row flex items-center px-4 py-3 select-none group ${adminPassword ? 'cursor-grab active:cursor-grabbing' : ''}`;
         li.dataset.id = track.id;
 
         li.innerHTML = `
@@ -428,7 +427,6 @@ function renderTracks(album) {
         if (sortableInstance) sortableInstance.destroy();
         sortableInstance = new Sortable(tracksList, {
             animation: 200,
-            handle: '.drag-handle',
             ghostClass: 'bg-white/10',
             dragClass: 'shadow-2xl',
             onEnd: function (evt) {
