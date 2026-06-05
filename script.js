@@ -318,7 +318,13 @@ confirmDeleteBtn.addEventListener('click', () => {
     myAlbums = myAlbums.filter(a => a.id !== currentAlbumId);
     saveToLocalStorage();
     closeDeleteModal();
-    init();
+    // Refresh UI instantly
+    renderSidebar();
+    if (myAlbums.length > 0) {
+        selectAlbum(myAlbums[0].id);
+    } else {
+        showEmptyState();
+    }
 });
 
 // Listen for link input
