@@ -334,7 +334,7 @@ function showToast(isError = false) {
     
     // We recreate the icon and text elements inside the toast
     const msg = toastMessage ? toastMessage.textContent : "Порядок сохранен!";
-    toast.innerHTML = \`<i data-lucide="\${iconName}" class="\${textColor} w-5 h-5"></i><span class="font-medium text-sm" id="toast-message">\${msg}</span>\`;
+    toast.innerHTML = `<i data-lucide="${iconName}" class="${textColor} w-5 h-5"></i><span class="font-medium text-sm" id="toast-message">${msg}</span>`;
     
     lucide.createIcons();
     
