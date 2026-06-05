@@ -169,8 +169,8 @@ window.selectAlbum = function(id) {
 
     // Populate Header Info
     albumCover.src = album.coverUrl;
-    albumTitle.textContent = album.title;
-    albumArtist.textContent = album.artist;
+    albumTitle.innerHTML = album.title;
+    albumArtist.innerHTML = album.artist;
     albumTracksCount.textContent = `${album.tracks.length} треков`;
 
     // Set background blur effect
