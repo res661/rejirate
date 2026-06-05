@@ -96,8 +96,13 @@ async function init() {
     updateAdminUI();
     renderSidebar();
 
-    if (myAlbums.length > 0) {
-        selectAlbum(myAlbums[0].id);
+    const lastAlbumId = localStorage.getItem('lastAlbumId');
+    const albumToSelect = lastAlbumId && myAlbums.find(a => a.id === lastAlbumId) 
+        ? lastAlbumId 
+        : (myAlbums.length > 0 ? myAlbums[0].id : null);
+
+    if (albumToSelect) {
+        selectAlbum(albumToSelect);
     } else {
         showEmptyState();
     }
@@ -158,6 +163,9 @@ window.selectAlbum = function(id) {
     
     // Close mobile sidebar if open
     mobileSidebar.classList.add('-translate-x-full');
+    
+    // Save to memory
+    localStorage.setItem('lastAlbumId', id);
 
     // Populate Header Info
     albumCover.src = album.coverUrl;
@@ -184,6 +192,16 @@ window.selectAlbum = function(id) {
 
 function updateAdminUI() {
     lucide.createIcons();
+    
+    // Update empty state text
+    const emptyStateText = document.getElementById('empty-state-text');
+    if (emptyStateText) {
+        if (adminPassword) {
+            emptyStateText.textContent = "Выберите альбом из коллекции или добавьте новый";
+        } else {
+            emptyStateText.textContent = "Выберите альбом слева, чтобы посмотреть тир-листы треков!";
+        }
+    }
     
     // Update visibility of elements
     if (currentAlbumId) {
@@ -371,8 +389,8 @@ inputLink.addEventListener('input', async (e) => {
     }
 });
 
-// Render Tracks for Drag & Drop
-let dragSrcEl = null;
+// Render Tracks with SortableJS
+let sortableInstance = null;
 
 function renderTracks(album) {
     if (!album || !album.tracks) return;
@@ -381,8 +399,8 @@ function renderTracks(album) {
     
     album.tracks.forEach((track) => {
         const li = document.createElement('li');
-        li.className = 'track-row flex items-center px-4 py-3 cursor-pointer select-none group';
-        li.draggable = true;
+        li.className = 'track-row flex items-center px-4 py-3 select-none group';
+        // Remove native draggable
         li.dataset.id = track.id;
 
         li.innerHTML = `
@@ -391,118 +409,41 @@ function renderTracks(album) {
             </div>
             <div class="flex-1 min-w-0 pr-4">
                 <div class="text-base font-semibold text-white truncate group-hover:text-spotify transition-colors">${track.title}</div>
-                <div class="text-sm text-neutral-400 truncate">${album.artist}</div>
+                <div class="text-sm text-neutral-400 truncate mt-0.5">${track.artists}</div>
             </div>
             ${adminPassword ? `
-            <div class="w-6 flex items-center justify-center drag-handle text-neutral-500 hover:text-white">
+            <div class="w-6 flex items-center justify-center drag-handle cursor-grab text-neutral-500 hover:text-white transition-colors">
                 <i data-lucide="grip-vertical" class="w-5 h-5"></i>
             </div>
             ` : ''}
         `;
 
-        if (adminPassword) {
-            li.addEventListener('dragstart', handleDragStart);
-            li.addEventListener('dragenter', handleDragEnter);
-            li.addEventListener('dragover', handleDragOver);
-            li.addEventListener('dragleave', handleDragLeave);
-            li.addEventListener('drop', handleDrop);
-            li.addEventListener('dragend', handleDragEnd);
-
-            li.addEventListener('touchstart', handleTouchStart, {passive: false});
-            li.addEventListener('touchmove', handleTouchMove, {passive: false});
-            li.addEventListener('touchend', handleTouchEnd);
-        }
-
         tracksList.appendChild(li);
     });
 
     lucide.createIcons();
-}
-
-// Drag and Drop Logic
-function handleDragStart(e) {
-    dragSrcEl = this;
-    if(e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', this.outerHTML);
-    }
-    setTimeout(() => this.classList.add('dragging'), 0);
-}
-
-function handleDragOver(e) {
-    if (e.preventDefault) e.preventDefault();
-    if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDragEnter(e) {
-    if (this !== dragSrcEl) this.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-    this.classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-    if (e.stopPropagation) e.stopPropagation();
-
-    if (dragSrcEl !== this) {
-        const bounding = this.getBoundingClientRect();
-        const offset = bounding.y + (bounding.height / 2);
-        
-        if ((e.clientY || (e.touches && e.touches[0].clientY)) > offset) {
-            this.after(dragSrcEl);
-        } else {
-            this.before(dragSrcEl);
-        }
-        saveCurrentAlbumOrder();
-    }
-    return false;
-}
-
-function handleDragEnd(e) {
-    const items = tracksList.querySelectorAll('.track-row');
-    items.forEach(item => {
-        item.classList.remove('drag-over');
-        item.classList.remove('dragging');
-    });
-}
-
-// Touch Events
-let touchStartY = 0;
-let touchDragEl = null;
-
-function handleTouchStart(e) {
-    if (e.target.closest('.drag-handle')) {
-        touchDragEl = this;
-        touchStartY = e.touches[0].clientY;
-        this.classList.add('dragging');
-        e.preventDefault();
-    }
-}
-
-function handleTouchMove(e) {
-    if (!touchDragEl) return;
-    e.preventDefault();
     
-    const touchY = e.touches[0].clientY;
-    const elements = document.elementsFromPoint(e.touches[0].clientX, touchY);
-    const targetLi = elements.find(el => el.classList && el.classList.contains('track-row') && el !== touchDragEl);
-
-    if (targetLi) {
-        const bounding = targetLi.getBoundingClientRect();
-        const offset = bounding.y + (bounding.height / 2);
-        
-        if (touchY > offset) targetLi.after(touchDragEl);
-        else targetLi.before(touchDragEl);
+    // Initialize or destroy SortableJS
+    if (adminPassword) {
+        if (sortableInstance) sortableInstance.destroy();
+        sortableInstance = new Sortable(tracksList, {
+            animation: 200,
+            handle: '.drag-handle',
+            ghostClass: 'bg-white/10',
+            dragClass: 'shadow-2xl',
+            onEnd: function (evt) {
+                const item = album.tracks.splice(evt.oldIndex, 1)[0];
+                album.tracks.splice(evt.newIndex, 0, item);
+                saveToGlobalDB();
+                renderTracks(album); // Re-render to fix counters
+            }
+        });
+    } else {
+        if (sortableInstance) {
+            sortableInstance.destroy();
+            sortableInstance = null;
+        }
     }
-}
-
-function handleTouchEnd(e) {
-    if (!touchDragEl) return;
-    touchDragEl.classList.remove('dragging');
-    touchDragEl = null;
-    saveCurrentAlbumOrder();
 }
 
 // Saving & Notifications

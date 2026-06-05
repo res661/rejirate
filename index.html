@@ -157,7 +157,7 @@
             
             <div id="empty-state" class="text-center mt-20 text-neutral-500">
                 <i data-lucide="music" class="w-16 h-16 mx-auto mb-4 opacity-20"></i>
-                <p>Выберите альбом из коллекции или добавьте новый</p>
+                <p id="empty-state-text">Выберите альбом из коллекции или добавьте новый</p>
             </div>
 
         </div>
@@ -197,6 +197,8 @@
     </div>
 
     <!-- Initialization -->
+    <!-- SortableJS for smooth drag and drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="script.js"></script>
     <script>
         // Initialize Lucide icons
