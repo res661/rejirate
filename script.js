@@ -428,8 +428,9 @@ function renderTracks(album) {
         if (sortableInstance) sortableInstance.destroy();
         sortableInstance = new Sortable(tracksList, {
             animation: 200,
-            ghostClass: 'bg-white/10',
-            dragClass: 'shadow-2xl',
+            ghostClass: 'opacity-20',
+            chosenClass: 'bg-spotify/20',
+            dragClass: 'shadow-[0_0_30px_rgba(30,215,96,0.3)]',
             onEnd: function (evt) {
                 const item = album.tracks.splice(evt.oldIndex, 1)[0];
                 album.tracks.splice(evt.newIndex, 0, item);
