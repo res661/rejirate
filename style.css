@@ -1,0 +1,140 @@
+/* Apple & Spotify Inspired Glassmorphism Styles */
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glass Panels */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Sidebar item hover */
+.album-sidebar-item {
+    transition: all 0.2s ease;
+}
+.album-sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.album-sidebar-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-left: 3px solid #1DB954;
+}
+
+/* Track Row */
+.track-row {
+    background: transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.track-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem; /* rounded-xl */
+}
+
+/* Drag and Drop States */
+.track-row.dragging {
+    opacity: 0.5;
+    transform: scale(1.02);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 0.75rem;
+    z-index: 50;
+}
+
+.track-row.drag-over {
+    border-top: 2px solid #1DB954; /* Spotify Green */
+}
+
+.drag-handle {
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.track-row:hover .drag-handle {
+    opacity: 1;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Track Number Logic */
+#tracks-list {
+    counter-reset: track-counter;
+}
+
+.track-row {
+    counter-increment: track-counter;
+}
+
+.track-number::before {
+    content: counter(track-counter);
+}
+
+.track-row:hover .track-number::before {
+    content: "";
+}
+
+.track-row:hover .track-number {
+    position: relative;
+}
+
+.track-row:hover .track-play-icon {
+    display: block;
+}
+
+.track-play-icon {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-down {
+    animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+.toast-visible {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+}
+
+/* Scrollbar styling for a premium feel */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
