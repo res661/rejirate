@@ -21,6 +21,10 @@ const albumTracksCount = document.getElementById('album-tracks-count');
 const sidebarList = document.getElementById('albums-sidebar-list');
 const mobileSidebarList = document.getElementById('mobile-albums-sidebar-list');
 const deleteAlbumBtn = document.getElementById('delete-album-btn');
+const searchHeader = document.getElementById('search-header');
+
+const logoBtnDesktop = document.getElementById('logo-btn-desktop');
+const logoBtnMobile = document.getElementById('logo-btn-mobile');
 
 // Mobile Menu
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -33,6 +37,20 @@ mobileMenuBtn.addEventListener('click', () => {
 closeMobileMenuBtn.addEventListener('click', () => {
     mobileSidebar.classList.add('-translate-x-full');
 });
+
+if (logoBtnDesktop) {
+    logoBtnDesktop.addEventListener('click', () => {
+        showEmptyState();
+        renderSidebar();
+    });
+}
+if (logoBtnMobile) {
+    logoBtnMobile.addEventListener('click', () => {
+        showEmptyState();
+        renderSidebar();
+        mobileSidebar.classList.add('-translate-x-full');
+    });
+}
 
 // Initialization
 function init() {
@@ -64,6 +82,7 @@ function renderSidebar() {
 function showEmptyState() {
     albumView.classList.add('hidden');
     emptyState.classList.remove('hidden');
+    searchHeader.classList.remove('hidden');
     bgBlur.style.backgroundImage = 'none';
     currentAlbumId = null;
 }
@@ -91,6 +110,7 @@ window.selectAlbum = function(id) {
     renderTracks(album);
     
     emptyState.classList.add('hidden');
+    searchHeader.classList.add('hidden');
     albumView.classList.remove('hidden');
 }
 
@@ -187,7 +207,6 @@ function renderTracks(album) {
         li.innerHTML = `
             <div class="w-12 text-center text-neutral-400 font-medium track-number text-sm">
                 <!-- CSS Counter populates this -->
-                <i data-lucide="play" class="w-4 h-4 text-white track-play-icon"></i>
             </div>
             <div class="flex-1 min-w-0 pr-4">
                 <div class="text-base font-semibold text-white truncate group-hover:text-spotify transition-colors">${track.title}</div>

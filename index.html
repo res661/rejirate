@@ -40,9 +40,9 @@
     <aside class="w-72 border-r border-white/10 bg-black/40 backdrop-blur-xl z-20 flex flex-col h-full hidden md:flex shrink-0">
         <div class="p-6 flex flex-col gap-4">
             <!-- App Logo -->
-            <div class="flex items-center gap-3 mb-2">
-                <img src="logo.png" alt="Logo" class="w-12 h-12 rounded-full shadow-lg border border-white/10" onerror="this.style.display='none'">
-                <h1 class="text-xl font-bold">Music Top</h1>
+            <div id="logo-btn-desktop" class="flex items-center gap-3 mb-2 cursor-pointer transition-opacity hover:opacity-80">
+                <img src="logo.png" alt="Logo" class="w-12 h-12 rounded-full" onerror="this.style.display='none'">
+                <h1 class="text-xl font-bold">REJIBOI LIST</h1>
             </div>
             
             <h2 class="text-sm uppercase tracking-wider font-bold text-neutral-500 flex items-center gap-2">
@@ -66,9 +66,9 @@
     <!-- Mobile Sidebar Overlay -->
     <div id="mobile-sidebar" class="fixed inset-0 bg-black/60 backdrop-blur-xl z-40 transform -translate-x-full transition-transform duration-300 md:hidden flex flex-col">
         <div class="p-6 flex items-center justify-between mt-12">
-            <div class="flex items-center gap-3">
-                <img src="logo.png" alt="Logo" class="w-10 h-10 rounded-full shadow-lg border border-white/10" onerror="this.style.display='none'">
-                <h1 class="text-xl font-bold">Music Top</h1>
+            <div id="logo-btn-mobile" class="flex items-center gap-3 cursor-pointer transition-opacity hover:opacity-80">
+                <img src="logo.png" alt="Logo" class="w-10 h-10 rounded-full" onerror="this.style.display='none'">
+                <h1 class="text-xl font-bold">REJIBOI LIST</h1>
             </div>
             <button id="close-mobile-menu" class="p-2">
                 <i data-lucide="x" class="w-6 h-6"></i>
@@ -90,7 +90,7 @@
         <div class="max-w-4xl mx-auto p-6 md:p-12">
             
             <!-- Input Section -->
-            <header class="mb-12 text-center animate-fade-in-down mt-12 md:mt-0">
+            <header id="search-header" class="mb-12 text-center animate-fade-in-down mt-12 md:mt-0">
                 <h1 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">Ранжирование альбомов</h1>
                 <p class="text-neutral-400 mb-8 max-w-md mx-auto text-sm md:text-base">Вставьте ссылку на любой альбом из Spotify, чтобы скачать треки и составить свой личный топ.</p>
                 
@@ -116,11 +116,8 @@
                         <i data-lucide="trash-2" class="w-5 h-5"></i>
                     </button>
 
-                    <div class="relative group cursor-pointer shrink-0">
-                        <img id="album-cover" src="" alt="Album Cover" class="w-40 h-40 md:w-56 md:h-56 rounded-xl shadow-2xl object-cover transition-transform duration-500 group-hover:scale-105">
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl flex items-center justify-center">
-                            <i data-lucide="play" class="w-12 h-12 text-white ml-2"></i>
-                        </div>
+                    <div class="relative shrink-0">
+                        <img id="album-cover" src="" alt="Album Cover" class="w-40 h-40 md:w-56 md:h-56 rounded-xl shadow-2xl object-cover">
                     </div>
                     <div class="text-center md:text-left flex-1 min-w-0">
                         <span class="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2 block">Альбом</span>

@@ -77,26 +77,6 @@ body {
     content: counter(track-counter);
 }
 
-.track-row:hover .track-number::before {
-    content: "";
-}
-
-.track-row:hover .track-number {
-    position: relative;
-}
-
-.track-row:hover .track-play-icon {
-    display: block;
-}
-
-.track-play-icon {
-    display: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
 /* Animations */
 @keyframes fadeInDown {
     from { opacity: 0; transform: translateY(-20px); }
