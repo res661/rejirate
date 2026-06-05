@@ -26,6 +26,15 @@ const searchHeader = document.getElementById('search-header');
 const logoBtnDesktop = document.getElementById('logo-btn-desktop');
 const logoBtnMobile = document.getElementById('logo-btn-mobile');
 
+const sidebarSearch = document.getElementById('sidebar-search');
+const mobileSidebarSearch = document.getElementById('mobile-sidebar-search');
+
+const deleteModal = document.getElementById('delete-modal');
+const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
+let sidebarSearchQuery = "";
+
 // Mobile Menu
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
 const closeMobileMenuBtn = document.getElementById('close-mobile-menu');
@@ -64,7 +73,13 @@ function init() {
 
 // Sidebar Rendering
 function renderSidebar() {
-    const html = myAlbums.map(album => `
+    const query = sidebarSearchQuery.toLowerCase();
+    const filteredAlbums = myAlbums.filter(album => 
+        album.title.toLowerCase().includes(query) || 
+        album.artist.toLowerCase().includes(query)
+    );
+
+    const html = filteredAlbums.map(album => `
         <div class="album-sidebar-item flex items-center gap-3 p-3 rounded-xl cursor-pointer select-none mb-1 ${album.id === currentAlbumId ? 'active' : ''}" 
              onclick="selectAlbum('${album.id}')">
             <img src="${album.coverUrl}" class="w-12 h-12 rounded-md object-cover shadow-md">
@@ -77,6 +92,20 @@ function renderSidebar() {
     
     sidebarList.innerHTML = html;
     mobileSidebarList.innerHTML = html;
+}
+
+sidebarSearch.addEventListener('input', (e) => {
+    sidebarSearchQuery = e.target.value;
+    if (mobileSidebarSearch) mobileSidebarSearch.value = sidebarSearchQuery;
+    renderSidebar();
+});
+
+if (mobileSidebarSearch) {
+    mobileSidebarSearch.addEventListener('input', (e) => {
+        sidebarSearchQuery = e.target.value;
+        sidebarSearch.value = sidebarSearchQuery;
+        renderSidebar();
+    });
 }
 
 function showEmptyState() {
@@ -114,14 +143,35 @@ window.selectAlbum = function(id) {
     albumView.classList.remove('hidden');
 }
 
-// Delete current album
+// Delete current album modal logic
 deleteAlbumBtn.addEventListener('click', () => {
     if (!currentAlbumId) return;
-    if (confirm("Удалить этот альбом из коллекции?")) {
-        myAlbums = myAlbums.filter(a => a.id !== currentAlbumId);
-        saveToLocalStorage();
-        init();
-    }
+    deleteModal.classList.remove('hidden');
+    // slight delay for animation
+    setTimeout(() => {
+        deleteModal.classList.remove('opacity-0');
+        const panel = deleteModal.querySelector('.glass-panel');
+        if(panel) panel.classList.remove('scale-95');
+    }, 10);
+});
+
+cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+
+function closeDeleteModal() {
+    deleteModal.classList.add('opacity-0');
+    const panel = deleteModal.querySelector('.glass-panel');
+    if(panel) panel.classList.add('scale-95');
+    setTimeout(() => {
+        deleteModal.classList.add('hidden');
+    }, 300);
+}
+
+confirmDeleteBtn.addEventListener('click', () => {
+    if (!currentAlbumId) return;
+    myAlbums = myAlbums.filter(a => a.id !== currentAlbumId);
+    saveToLocalStorage();
+    closeDeleteModal();
+    init();
 });
 
 // Listen for link input
