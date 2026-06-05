@@ -21,6 +21,6 @@
   "homepage": "https://github.com/res661/rejirate#readme",
   "description": "",
   "dependencies": {
-    "mongodb": "^7.2.0"
+    "@supabase/supabase-js": "^2.107.0"
   }
 }

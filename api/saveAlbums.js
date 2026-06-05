@@ -1,4 +1,4 @@
-import clientPromise from '../lib/mongodb.js';
+import supabase from '../lib/supabase.js';
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -26,19 +26,23 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Invalid data format' });
         }
 
-        const client = await clientPromise;
-        const db = client.db('rejirate');
-        
+        if (!supabase) {
+            return res.status(500).json({ error: 'Supabase client not initialized' });
+        }
+
         // Записываем или обновляем список альбомов
-        await db.collection('data').updateOne(
-            { _id: 'my_albums' },
-            { $set: { albums: albums } },
-            { upsert: true }
-        );
+        const { error } = await supabase
+            .from('app_data')
+            .upsert({ id: 'my_albums', albums: albums });
+
+        if (error) {
+            console.error("Supabase Write Error:", error);
+            return res.status(500).json({ error: 'Failed to save to Supabase' });
+        }
 
         res.status(200).json({ success: true });
     } catch (error) {
-        console.error("Database Error:", error);
+        console.error("Supabase Save Error:", error);
         res.status(500).json({ error: 'Failed to save albums' });
     }
 }
