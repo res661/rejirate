@@ -34,13 +34,13 @@ const deleteModal = document.getElementById('delete-modal');
 const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
-const adminLoginBtn = document.getElementById('admin-login-btn');
 const adminModal = document.getElementById('admin-modal');
 const adminPasswordInput = document.getElementById('admin-password-input');
 const cancelAdminBtn = document.getElementById('cancel-admin-btn');
 const confirmAdminBtn = document.getElementById('confirm-admin-btn');
 
 let sidebarSearchQuery = "";
+let secretBuffer = "";
 
 // Mobile Menu
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -77,6 +77,20 @@ async function init() {
         }
     } catch (e) {
         console.error("Failed to load global albums", e);
+    }
+
+    // Very basic verify on load to ensure valid session if token exists
+    if (adminPassword) {
+        try {
+            const verify = await fetch('/api/verifyAuth', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${adminPassword}` }
+            });
+            if (!verify.ok) {
+                adminPassword = null;
+                localStorage.removeItem('rejirate_admin_pwd');
+            }
+        } catch(e) {}
     }
     
     updateAdminUI();
@@ -168,11 +182,6 @@ window.selectAlbum = function(id) {
 }
 
 function updateAdminUI() {
-    if (adminPassword) {
-        if(adminLoginBtn) adminLoginBtn.innerHTML = '<i data-lucide="unlock" class="w-3 h-3 text-spotify"></i><span class="text-spotify">Владелец онлайн</span>';
-    } else {
-        if(adminLoginBtn) adminLoginBtn.innerHTML = '<i data-lucide="lock" class="w-3 h-3"></i><span>Вход для владельца</span>';
-    }
     lucide.createIcons();
     
     // Update visibility of elements
@@ -186,27 +195,29 @@ function updateAdminUI() {
     renderTracks(myAlbums.find(a => a.id === currentAlbumId));
 }
 
-// Admin Login Logic
-if (adminLoginBtn) {
-    adminLoginBtn.addEventListener('click', () => {
-        if (adminPassword) {
-            // Logout
-            adminPassword = null;
-            localStorage.removeItem('rejirate_admin_pwd');
-            updateAdminUI();
-            toastMessage.textContent = "Вы вышли из админки";
-            showToast(false);
-            return;
+// Secret key sequence logic
+document.addEventListener('keydown', (e) => {
+    if (adminPassword || adminModal.classList.contains('opacity-0') === false) return; // Ignore if already admin or modal is open
+    
+    // Keep only letters for the secret code to make it robust
+    if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
+        secretBuffer += e.key.toLowerCase();
+        if (secretBuffer.length > 12) {
+            secretBuffer = secretBuffer.slice(-12);
         }
-        adminModal.classList.remove('hidden');
-        setTimeout(() => {
-            adminModal.classList.remove('opacity-0');
-            const panel = adminModal.querySelector('.glass-panel');
-            if(panel) panel.classList.remove('scale-95');
-            adminPasswordInput.focus();
-        }, 10);
-    });
-}
+        
+        if (secretBuffer === 'adminrejiboi') {
+            secretBuffer = "";
+            adminModal.classList.remove('hidden');
+            setTimeout(() => {
+                adminModal.classList.remove('opacity-0');
+                const panel = adminModal.querySelector('.glass-panel');
+                if(panel) panel.classList.remove('scale-95');
+                adminPasswordInput.focus();
+            }, 10);
+        }
+    }
+});
 
 function closeAdminModal() {
     adminModal.classList.add('opacity-0');
@@ -215,18 +226,46 @@ function closeAdminModal() {
     setTimeout(() => {
         adminModal.classList.add('hidden');
         adminPasswordInput.value = '';
+        confirmAdminBtn.textContent = 'Войти';
+        confirmAdminBtn.disabled = false;
     }, 300);
 }
 
 cancelAdminBtn.addEventListener('click', closeAdminModal);
-confirmAdminBtn.addEventListener('click', () => {
-    adminPassword = adminPasswordInput.value.trim();
-    if (adminPassword) {
-        localStorage.setItem('rejirate_admin_pwd', adminPassword);
-        updateAdminUI();
-        closeAdminModal();
-        toastMessage.textContent = "Режим владельца включен!";
-        showToast(false);
+
+confirmAdminBtn.addEventListener('click', async () => {
+    const pwd = adminPasswordInput.value.trim();
+    if (!pwd) return;
+
+    confirmAdminBtn.textContent = 'Проверка...';
+    confirmAdminBtn.disabled = true;
+
+    try {
+        const res = await fetch('/api/verifyAuth', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${pwd}`
+            }
+        });
+
+        if (res.ok) {
+            adminPassword = pwd;
+            localStorage.setItem('rejirate_admin_pwd', adminPassword);
+            updateAdminUI();
+            closeAdminModal();
+            toastMessage.textContent = "Режим владельца включен!";
+            showToast(false);
+        } else {
+            toastMessage.textContent = "Неверный пароль!";
+            showToast(true);
+            confirmAdminBtn.textContent = 'Войти';
+            confirmAdminBtn.disabled = false;
+        }
+    } catch (e) {
+        toastMessage.textContent = "Ошибка сети";
+        showToast(true);
+        confirmAdminBtn.textContent = 'Войти';
+        confirmAdminBtn.disabled = false;
     }
 });
 
