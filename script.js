@@ -1,6 +1,8 @@
 // State Management
 let myAlbums = [];
-let currentAlbumId = null;
+let myPlaylists = [];
+let currentTab = 'albums'; // 'albums' or 'playlists'
+let currentAlbumId = null; // represents currently active item ID
 let adminPassword = localStorage.getItem('rejirate_admin_pwd') || null;
 
 // DOM Elements
@@ -38,6 +40,12 @@ const adminModal = document.getElementById('admin-modal');
 const adminPasswordInput = document.getElementById('admin-password-input');
 const cancelAdminBtn = document.getElementById('cancel-admin-btn');
 const confirmAdminBtn = document.getElementById('confirm-admin-btn');
+
+// Tab Switcher Elements
+const tabAlbums = document.getElementById('tab-albums');
+const tabPlaylists = document.getElementById('tab-playlists');
+const mobileTabAlbums = document.getElementById('mobile-tab-albums');
+const mobileTabPlaylists = document.getElementById('mobile-tab-playlists');
 
 let sidebarSearchQuery = "";
 let secretBuffer = "";
@@ -79,6 +87,15 @@ async function init() {
         console.error("Failed to load global albums", e);
     }
 
+    try {
+        const res = await fetch('/api/getPlaylists');
+        if (res.ok) {
+            myPlaylists = await res.json();
+        }
+    } catch (e) {
+        console.error("Failed to load global playlists", e);
+    }
+
     // Very basic verify on load to ensure valid session if token exists
     if (adminPassword) {
         try {
@@ -93,36 +110,85 @@ async function init() {
         } catch(e) {}
     }
     
+    // Tab Event Listeners
+    if (tabAlbums) tabAlbums.addEventListener('click', () => switchTab('albums'));
+    if (tabPlaylists) tabPlaylists.addEventListener('click', () => switchTab('playlists'));
+    if (mobileTabAlbums) mobileTabAlbums.addEventListener('click', () => switchTab('albums'));
+    if (mobileTabPlaylists) mobileTabPlaylists.addEventListener('click', () => switchTab('playlists'));
+
+    const savedTab = localStorage.getItem('lastTab') || 'albums';
+    switchTab(savedTab);
+}
+
+// Tab Switching logic
+function switchTab(tab) {
+    currentTab = tab;
+    
+    // Update active styles
+    if (tab === 'albums') {
+        tabAlbums?.classList.add('active-tab');
+        tabAlbums?.classList.remove('bg-transparent', 'text-neutral-400', 'hover:text-white', 'hover:bg-white/5');
+        tabPlaylists?.classList.remove('active-tab');
+        tabPlaylists?.classList.add('bg-transparent', 'text-neutral-400', 'hover:text-white', 'hover:bg-white/5');
+        
+        mobileTabAlbums?.classList.add('active-tab');
+        mobileTabAlbums?.classList.remove('bg-transparent', 'text-neutral-400');
+        mobileTabPlaylists?.classList.remove('active-tab');
+        mobileTabPlaylists?.classList.add('bg-transparent', 'text-neutral-400');
+        
+        sidebarSearch.placeholder = "Поиск альбомов...";
+        if (mobileSidebarSearch) mobileSidebarSearch.placeholder = "Поиск альбомов...";
+        inputLink.placeholder = "https://open.spotify.com/album/...";
+    } else {
+        tabPlaylists?.classList.add('active-tab');
+        tabPlaylists?.classList.remove('bg-transparent', 'text-neutral-400', 'hover:text-white', 'hover:bg-white/5');
+        tabAlbums?.classList.remove('active-tab');
+        tabAlbums?.classList.add('bg-transparent', 'text-neutral-400', 'hover:text-white', 'hover:bg-white/5');
+        
+        mobileTabPlaylists?.classList.add('active-tab');
+        mobileTabPlaylists?.classList.remove('bg-transparent', 'text-neutral-400');
+        mobileTabAlbums?.classList.remove('active-tab');
+        mobileTabAlbums?.classList.add('bg-transparent', 'text-neutral-400');
+        
+        sidebarSearch.placeholder = "Поиск плейлистов...";
+        if (mobileSidebarSearch) mobileSidebarSearch.placeholder = "Поиск плейлистов...";
+        inputLink.placeholder = "https://open.spotify.com/playlist/...";
+    }
+    
+    localStorage.setItem('lastTab', tab);
     updateAdminUI();
-    renderSidebar();
 
-    const lastAlbumId = localStorage.getItem('lastAlbumId');
-    const albumToSelect = lastAlbumId && myAlbums.find(a => a.id === lastAlbumId) 
-        ? lastAlbumId 
-        : (myAlbums.length > 0 ? myAlbums[0].id : null);
+    // Select last item of the active tab
+    const lastItemId = localStorage.getItem(`last_${tab}_Id`);
+    const currentList = tab === 'albums' ? myAlbums : myPlaylists;
+    const itemToSelect = lastItemId && currentList.find(a => a.id === lastItemId) 
+        ? lastItemId 
+        : (currentList.length > 0 ? currentList[0].id : null);
 
-    if (albumToSelect) {
-        selectAlbum(albumToSelect);
+    if (itemToSelect) {
+        selectAlbum(itemToSelect);
     } else {
         showEmptyState();
+        renderSidebar();
     }
 }
 
 // Sidebar Rendering
 function renderSidebar() {
     const query = sidebarSearchQuery.toLowerCase();
-    const filteredAlbums = myAlbums.filter(album => 
-        album.title.toLowerCase().includes(query) || 
-        album.artist.toLowerCase().includes(query)
+    const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
+    const filteredItems = currentList.filter(item => 
+        item.title.toLowerCase().includes(query) || 
+        item.artist.toLowerCase().includes(query)
     );
 
-    const html = filteredAlbums.map(album => `
-        <div class="album-sidebar-item flex items-center gap-3 p-3 rounded-xl cursor-pointer select-none mb-1 ${album.id === currentAlbumId ? 'active' : ''}" 
-             onclick="selectAlbum('${album.id}')">
-            <img src="${album.coverUrl}" class="w-12 h-12 rounded-md object-cover shadow-md">
+    const html = filteredItems.map(item => `
+        <div class="album-sidebar-item flex items-center gap-3 p-3 rounded-xl cursor-pointer select-none mb-1 ${item.id === currentAlbumId ? 'active' : ''}" 
+             onclick="selectAlbum('${item.id}')">
+            <img src="${item.coverUrl}" class="w-12 h-12 rounded-md object-cover shadow-md">
             <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm text-white truncate">${album.title}</div>
-                <div class="text-xs text-neutral-400 truncate">${album.artist}</div>
+                <div class="font-semibold text-sm text-white truncate">${item.title}</div>
+                <div class="text-xs text-neutral-400 truncate">${item.artist}</div>
             </div>
         </div>
     `).join('');
@@ -153,10 +219,11 @@ function showEmptyState() {
     currentAlbumId = null;
 }
 
-// Select Album from Sidebar
+// Select Item from Sidebar
 window.selectAlbum = function(id) {
-    const album = myAlbums.find(a => a.id === id);
-    if (!album) return;
+    const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
+    const item = currentList.find(a => a.id === id);
+    if (!item) return;
     
     currentAlbumId = id;
     renderSidebar();
@@ -165,18 +232,24 @@ window.selectAlbum = function(id) {
     mobileSidebar.classList.add('-translate-x-full');
     
     // Save to memory
-    localStorage.setItem('lastAlbumId', id);
+    localStorage.setItem(`last_${currentTab}_Id`, id);
 
     // Populate Header Info
-    albumCover.src = album.coverUrl;
-    albumTitle.innerHTML = album.title;
-    albumArtist.innerHTML = album.artist;
-    albumTracksCount.textContent = `${album.tracks.length} треков`;
+    albumCover.src = item.coverUrl;
+    albumTitle.innerHTML = item.title;
+    albumArtist.innerHTML = item.artist;
+    albumTracksCount.textContent = `${item.tracks.length} треков`;
+
+    // Update Label (Альбом / Плейлист)
+    const viewTypeLabel = document.getElementById('view-type-label');
+    if (viewTypeLabel) {
+        viewTypeLabel.textContent = currentTab === 'albums' ? 'Альбом' : 'Плейлист';
+    }
 
     // Set background blur effect
-    bgBlur.style.backgroundImage = `url(${album.coverUrl})`;
+    bgBlur.style.backgroundImage = `url(${item.coverUrl})`;
 
-    renderTracks(album);
+    renderTracks(item);
     
     emptyState.classList.add('hidden');
     albumView.classList.remove('hidden');
@@ -197,10 +270,38 @@ function updateAdminUI() {
     const emptyStateText = document.getElementById('empty-state-text');
     if (emptyStateText) {
         if (adminPassword) {
-            emptyStateText.textContent = "Выберите альбом из коллекции или добавьте новый";
+            emptyStateText.textContent = currentTab === 'albums' 
+                ? "Выберите альбом из коллекции или добавьте новый"
+                : "Выберите плейлист из коллекции или добавьте новый";
         } else {
-            emptyStateText.textContent = "Выберите альбом слева, чтобы посмотреть тир-листы треков!";
+            emptyStateText.textContent = currentTab === 'albums'
+                ? "Выберите альбом слева, чтобы посмотреть тир-листы треков!"
+                : "Выберите плейлист слева, чтобы посмотреть тир-листы треков!";
         }
+    }
+    
+    // Update main header texts
+    const mainTitle = document.getElementById('main-title');
+    const mainDesc = document.getElementById('main-desc');
+    if (mainTitle) {
+        mainTitle.textContent = currentTab === 'albums' ? "Ранжирование альбомов" : "Ранжирование плейлистов";
+    }
+    if (mainDesc) {
+        mainDesc.textContent = currentTab === 'albums'
+            ? "Вставьте ссылку на любой альбом из Spotify, чтобы скачать треки и составить свой личный топ."
+            : "Вставьте ссылку на любой плейлист из Spotify, чтобы скачать треки и составить свой личный топ.";
+    }
+
+    // Update delete modal text
+    const deleteModalTitle = document.getElementById('delete-modal-title');
+    const deleteModalDesc = document.getElementById('delete-modal-desc');
+    if (deleteModalTitle) {
+        deleteModalTitle.textContent = currentTab === 'albums' ? "Удалить альбом?" : "Удалить плейлист?";
+    }
+    if (deleteModalDesc) {
+        deleteModalDesc.textContent = currentTab === 'albums'
+            ? "Вы уверены, что хотите удалить этот альбом из вашей коллекции? Это действие нельзя отменить."
+            : "Вы уверены, что хотите удалить этот плейлист из вашей коллекции? Это действие нельзя отменить.";
     }
     
     // Update visibility of elements
@@ -211,9 +312,10 @@ function updateAdminUI() {
     }
     
     deleteAlbumBtn.style.display = adminPassword ? 'block' : 'none';
-    const selectedAlbum = myAlbums.find(a => a.id === currentAlbumId);
-    if (selectedAlbum) {
-        renderTracks(selectedAlbum);
+    const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
+    const selectedItem = currentList.find(a => a.id === currentAlbumId);
+    if (selectedItem) {
+        renderTracks(selectedItem);
     }
 }
 
@@ -290,7 +392,7 @@ confirmAdminBtn.addEventListener('click', async () => {
     }
 });
 
-// Delete current album modal logic
+// Delete current item modal logic
 deleteAlbumBtn.addEventListener('click', () => {
     if (!currentAlbumId) return;
     deleteModal.classList.remove('hidden');
@@ -315,13 +417,19 @@ function closeDeleteModal() {
 
 confirmDeleteBtn.addEventListener('click', () => {
     if (!currentAlbumId) return;
-    myAlbums = myAlbums.filter(a => a.id !== currentAlbumId);
+    if (currentTab === 'albums') {
+        myAlbums = myAlbums.filter(a => a.id !== currentAlbumId);
+    } else {
+        myPlaylists = myPlaylists.filter(p => p.id !== currentAlbumId);
+    }
     saveToLocalStorage();
     closeDeleteModal();
     // Refresh UI instantly
     renderSidebar();
-    if (myAlbums.length > 0) {
-        selectAlbum(myAlbums[0].id);
+    
+    const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
+    if (currentList.length > 0) {
+        selectAlbum(currentList[0].id);
     } else {
         showEmptyState();
     }
@@ -330,63 +438,77 @@ confirmDeleteBtn.addEventListener('click', () => {
 // Listen for link input
 inputLink.addEventListener('input', async (e) => {
     const val = e.target.value.trim();
-    if (val.startsWith('http') && val.includes('spotify.com/album/')) {
-        
+    if (!val.startsWith('http')) return;
+
+    const isAlbum = val.includes('spotify.com/album/');
+    const isPlaylist = val.includes('spotify.com/playlist/');
+
+    if (isAlbum || isPlaylist) {
         inputLink.disabled = true;
         loadingSpinner.classList.remove('hidden');
         
         try {
             // Extract ID
             const urlParts = val.split('/');
-            const albumId = urlParts[urlParts.length - 1].split('?')[0];
+            const itemId = urlParts[urlParts.length - 1].split('?')[0];
+
+            const detectedTab = isPlaylist ? 'playlists' : 'albums';
+
+            // Auto-switch tabs if different
+            if (currentTab !== detectedTab) {
+                switchTab(detectedTab);
+            }
+
+            const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
 
             // If already exists, just select it
-            if (myAlbums.find(a => a.id === albumId)) {
-                selectAlbum(albumId);
+            if (currentList.find(a => a.id === itemId)) {
+                selectAlbum(itemId);
                 inputLink.value = '';
                 return;
             }
 
-            // Fetch Album Data through Vercel Serverless Function
-            const apiUrl = `/api/spotify?albumId=${albumId}`;
-            const albumRes = await fetch(apiUrl);
+            // Fetch Data through Vercel Serverless Function
+            const param = currentTab === 'albums' ? 'albumId' : 'playlistId';
+            const apiUrl = `/api/spotify?${param}=${itemId}`;
+            const apiRes = await fetch(apiUrl);
             
-            if (!albumRes.ok) {
-                const errorData = await albumRes.json().catch(() => ({}));
-                throw new Error(errorData.error || "Failed to fetch Album via Vercel API");
+            if (!apiRes.ok) {
+                const errorData = await apiRes.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to fetch ${currentTab} via Vercel API`);
             }
             
-            const albumData = await albumRes.json();
+            const apiData = await apiRes.json();
             
-            const title = albumData.name;
-            const coverUrl = albumData.images && albumData.images.length > 0 ? albumData.images[0].url : "https://via.placeholder.com/300?text=No+Cover";
-            const artist = albumData.artists && albumData.artists.length > 0 ? albumData.artists[0].name : "Spotify Artist";
+            const title = apiData.name;
+            const coverUrl = apiData.images && apiData.images.length > 0 ? apiData.images[0].url : "https://via.placeholder.com/300?text=No+Cover";
+            const artist = apiData.artists && apiData.artists.length > 0 ? apiData.artists[0].name : (currentTab === 'albums' ? "Spotify Artist" : "Spotify Creator");
             
-            let tracks = albumData.tracks.items.map(t => ({
+            let tracks = apiData.tracks.items.map(t => ({
                 id: t.id,
                 title: t.name,
-                artists: artist
+                artists: t.artists || artist
             }));
 
-            // Save new album
-            const newAlbum = {
-                id: albumId,
+            // Save new item
+            const newItem = {
+                id: itemId,
                 title: title,
                 artist: artist,
                 coverUrl: coverUrl,
                 tracks: tracks
             };
 
-            myAlbums.push(newAlbum);
+            currentList.push(newItem);
             saveToLocalStorage();
             
             // Select and clear
-            selectAlbum(albumId);
+            selectAlbum(itemId);
             inputLink.value = '';
 
         } catch (error) {
-            console.error("Error fetching album data:", error);
-            toastMessage.textContent = "Ошибка загрузки альбома";
+            console.error("Error fetching data:", error);
+            toastMessage.textContent = currentTab === 'albums' ? "Ошибка загрузки альбома" : "Ошибка загрузки плейлиста";
             showToast(true);
         } finally {
             inputLink.disabled = false;
@@ -399,12 +521,12 @@ inputLink.addEventListener('input', async (e) => {
 // Render Tracks with SortableJS
 let sortableInstance = null;
 
-function renderTracks(album) {
-    if (!album || !album.tracks) return;
+function renderTracks(item) {
+    if (!item || !item.tracks) return;
     
     tracksList.innerHTML = '';
     
-    album.tracks.forEach((track) => {
+    item.tracks.forEach((track) => {
         const li = document.createElement('li');
         li.className = `track-row flex items-center px-4 py-3 select-none group ${adminPassword ? 'cursor-grab active:cursor-grabbing' : ''}`;
         li.dataset.id = track.id;
@@ -415,7 +537,7 @@ function renderTracks(album) {
             </div>
             <div class="flex-1 min-w-0 pr-4">
                 <div class="text-base font-semibold text-white truncate group-hover:text-spotify transition-colors">${track.title}</div>
-                <div class="text-sm text-neutral-400 truncate mt-0.5">${track.artists || album.artist}</div>
+                <div class="text-sm text-neutral-400 truncate mt-0.5">${track.artists || item.artist}</div>
             </div>
             ${adminPassword ? `
             <div class="w-6 flex items-center justify-center drag-handle cursor-grab text-neutral-500 hover:text-white transition-colors">
@@ -438,10 +560,10 @@ function renderTracks(album) {
             chosenClass: 'bg-spotify/20',
             dragClass: 'shadow-[0_0_30px_rgba(30,215,96,0.3)]',
             onEnd: function (evt) {
-                const item = album.tracks.splice(evt.oldIndex, 1)[0];
-                album.tracks.splice(evt.newIndex, 0, item);
+                const element = item.tracks.splice(evt.oldIndex, 1)[0];
+                item.tracks.splice(evt.newIndex, 0, element);
                 saveToGlobalDB();
-                renderTracks(album); // Re-render to fix counters
+                renderTracks(item); // Re-render to fix counters
             }
         });
     } else {
@@ -457,13 +579,18 @@ async function saveToGlobalDB() {
     if (!adminPassword) return;
 
     try {
-        const res = await fetch('/api/saveAlbums', {
+        const isAlbums = currentTab === 'albums';
+        const apiUrl = isAlbums ? '/api/saveAlbums' : '/api/savePlaylists';
+        const payloadKey = isAlbums ? 'albums' : 'playlists';
+        const payloadVal = isAlbums ? myAlbums : myPlaylists;
+
+        const res = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${adminPassword}`
             },
-            body: JSON.stringify({ albums: myAlbums })
+            body: JSON.stringify({ [payloadKey]: payloadVal })
         });
 
         if (!res.ok) {
@@ -478,7 +605,6 @@ async function saveToGlobalDB() {
                 showToast(true);
             }
         }
-        // Success case is now silent to prevent visual spam on every drag
     } catch (e) {
         console.error(e);
         toastMessage.textContent = "Ошибка сети";
@@ -489,20 +615,18 @@ async function saveToGlobalDB() {
 function saveCurrentAlbumOrder() {
     if (!currentAlbumId || !adminPassword) return;
     
-    // Extract new DOM order
     const newOrderIds = Array.from(tracksList.children).map(li => li.dataset.id);
     
-    // Find album and reorder tracks array
-    const albumIndex = myAlbums.findIndex(a => a.id === currentAlbumId);
-    if (albumIndex !== -1) {
-        const oldTracks = myAlbums[albumIndex].tracks;
-        myAlbums[albumIndex].tracks = newOrderIds.map(id => oldTracks.find(t => t.id === id));
+    const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
+    const itemIndex = currentList.findIndex(a => a.id === currentAlbumId);
+    if (itemIndex !== -1) {
+        const oldTracks = currentList[itemIndex].tracks;
+        currentList[itemIndex].tracks = newOrderIds.map(id => oldTracks.find(t => t.id === id));
         saveToGlobalDB();
     }
 }
 
 function saveToLocalStorage() {
-    // We now save to the global DB
     saveToGlobalDB();
 }
 
@@ -510,11 +634,9 @@ let toastTimeout = null;
 function showToast(isError = false) {
     toast.classList.add('toast-visible');
     
-    // Lucide replaces <i> with <svg>, so we need to rewrite the innerHTML to change icons dynamically
     const iconName = isError ? 'alert-circle' : 'check-circle';
     const textColor = isError ? 'text-red-500' : 'text-spotify';
     
-    // We recreate the icon and text elements inside the toast
     const msg = toastMessage ? toastMessage.textContent : "Порядок сохранен!";
     toast.innerHTML = `<i data-lucide="${iconName}" class="${textColor} w-5 h-5"></i><span class="font-medium text-sm" id="toast-message">${msg}</span>`;
     

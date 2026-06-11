@@ -9,68 +9,80 @@ export default async function handler(req, res) {
         return;
     }
 
-    const { albumId } = req.query;
-    if (!albumId) {
-        return res.status(400).json({ error: 'Missing albumId' });
+    const { albumId, playlistId } = req.query;
+    if (!albumId && !playlistId) {
+        return res.status(400).json({ error: 'Missing albumId or playlistId' });
     }
 
+    const isPlaylist = !!playlistId;
+    const entityId = isPlaylist ? playlistId : albumId;
+    const typePath = isPlaylist ? 'playlist' : 'album';
+
     try {
-        // Мы скачиваем HTML-страницу альбома напрямую и парсим ее. 
-        // Это позволяет обойти ошибку "Active premium subscription required", 
-        // которая возникает у новых приложений Spotify API без платной подписки.
-        const response = await fetch(`https://open.spotify.com/album/${albumId}`);
+        // Мы скачиваем HTML-страницу эмбеда напрямую и парсим ее. 
+        // Это позволяет обойти ошибку авторизации и получить чистый JSON с метаданными.
+        const response = await fetch(`https://open.spotify.com/embed/${typePath}/${entityId}`);
+        if (!response.ok) {
+            return res.status(response.status).json({ error: `Spotify fetch failed with status ${response.status}` });
+        }
         const html = await response.text();
 
-        let title = "Unknown Album";
-        let artist = "Spotify Artist";
-        let coverUrl = "https://via.placeholder.com/300?text=No+Cover";
-
-        function decodeHtmlEntities(str) {
-            if (!str) return str;
-            return str.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
-                      .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
-                      .replace(/&amp;/g, '&')
-                      .replace(/&lt;/g, '<')
-                      .replace(/&gt;/g, '>')
-                      .replace(/&quot;/g, '"')
-                      .replace(/&#39;/g, "'")
-                      .replace(/&apos;/g, "'");
+        const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+        if (!nextDataMatch) {
+            return res.status(500).json({ error: 'Failed to parse Spotify page data' });
         }
 
-        const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-        if (titleMatch) {
-            const rawTitle = decodeHtmlEntities(titleMatch[1]); // "MAID OF HONOUR - Album by Drake | Spotify"
-            const parts = rawTitle.split(" - Album by ");
-            if (parts.length > 1) {
-                title = parts[0].trim();
-                artist = parts[1].split(" | Spotify")[0].trim();
-            } else {
-                title = rawTitle.replace(" | Spotify", "").trim();
+        const data = JSON.parse(nextDataMatch[1]);
+        const entity = data.props?.pageProps?.state?.data?.entity;
+
+        if (!entity) {
+            return res.status(500).json({ error: 'Invalid state structure returned by Spotify' });
+        }
+
+        const title = entity.name || entity.title || (isPlaylist ? "Unknown Playlist" : "Unknown Album");
+        
+        let artist = "Spotify Creator";
+        if (!isPlaylist) {
+            artist = entity.subtitle || "Spotify Artist";
+        } else {
+            // Для плейлистов subtitle обычно выглядит как "Playlist · mavyax · 25 items"
+            const subtitle = entity.subtitle || "";
+            if (subtitle.startsWith("Playlist ·")) {
+                const parts = subtitle.split("·").map(p => p.trim());
+                if (parts.length > 1) {
+                    artist = parts[1];
+                }
+            } else if (entity.authors && entity.authors.length > 0) {
+                artist = entity.authors.map(a => a.name).join(", ");
             }
         }
 
-        const coverMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-        if (coverMatch) {
-            coverUrl = coverMatch[1];
+        let coverUrl = "https://via.placeholder.com/300?text=No+Cover";
+        if (entity.coverArt?.sources && entity.coverArt.sources.length > 0) {
+            coverUrl = entity.coverArt.sources[0].url;
+        } else if (entity.visualIdentity?.image && entity.visualIdentity.image.length > 0) {
+            const img640 = entity.visualIdentity.image.find(img => img.maxWidth === 640);
+            coverUrl = img640 ? img640.url : entity.visualIdentity.image[0].url;
         }
 
-        const regex = /aria-labelledby="listrow-title-track-spotify:track:([^"]+)" aria-label="([^"]+)" data-testid="track-row"/g;
-        const tracksRaw = [...html.matchAll(regex)];
-        
         let tracks = [];
-        // Если удалось найти треки в HTML
-        if (tracksRaw.length > 0) {
-            tracks = tracksRaw.map((m, i) => ({
-                id: m[1],
-                name: decodeHtmlEntities(m[2])
-            }));
-        } else {
-            // Фолбек (на всякий случай, если структура Spotify поменяется)
-            tracks = Array.from({length: 12}).map((_, i) => ({ id: `fallback_${i}`, name: `Трек ${i+1}`}));
+        if (entity.trackList && Array.isArray(entity.trackList)) {
+            tracks = entity.trackList.map((t, idx) => {
+                let trackId = `track_${idx}`;
+                if (t.uri) {
+                    const parts = t.uri.split(':');
+                    trackId = parts[parts.length - 1];
+                }
+                return {
+                    id: trackId,
+                    name: t.title || `Трек ${idx + 1}`,
+                    artists: t.subtitle || artist
+                };
+            });
         }
 
-        const albumData = {
-            id: albumId,
+        const formattedData = {
+            id: entityId,
             name: title,
             artists: [{ name: artist }],
             images: [{ url: coverUrl }],
@@ -79,7 +91,7 @@ export default async function handler(req, res) {
             }
         };
 
-        res.status(200).json(albumData);
+        res.status(200).json(formattedData);
 
     } catch (error) {
         console.error(error);

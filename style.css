@@ -25,6 +25,13 @@ body {
     border-left: 3px solid #1DB954;
 }
 
+/* Tab Switcher Active State */
+.active-tab {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+
 /* Track Row */
 .track-row {
     background: transparent;
