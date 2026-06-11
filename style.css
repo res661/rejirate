@@ -27,9 +27,10 @@ body {
 
 /* Tab Switcher Active State */
 .active-tab {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-    color: #ffffff !important;
+    background-color: #1DB954 !important;
+    border-color: #1DB954 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
 }
 
 /* Track Row */
