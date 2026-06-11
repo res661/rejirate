@@ -461,13 +461,6 @@ inputLink.addEventListener('input', async (e) => {
 
             const currentList = currentTab === 'albums' ? myAlbums : myPlaylists;
 
-            // If already exists, just select it
-            if (currentList.find(a => a.id === itemId)) {
-                selectAlbum(itemId);
-                inputLink.value = '';
-                return;
-            }
-
             // Fetch Data through Vercel Serverless Function
             const param = currentTab === 'albums' ? 'albumId' : 'playlistId';
             const apiUrl = `/api/spotify?${param}=${itemId}`;
@@ -489,6 +482,35 @@ inputLink.addEventListener('input', async (e) => {
                 title: t.name,
                 artists: t.artists || artist
             }));
+
+            // Check if item already exists (refresh scenario)
+            const existingItemIndex = currentList.findIndex(item => item.id === itemId);
+            
+            if (existingItemIndex !== -1) {
+                // Item exists - merge tracks (keep old order, add new ones at the end)
+                const existingItem = currentList[existingItemIndex];
+                const existingTrackIds = new Set(existingItem.tracks.map(t => t.id));
+                const newTracks = tracks.filter(t => !existingTrackIds.has(t.id));
+                
+                if (newTracks.length > 0) {
+                    // Add new tracks to the end
+                    existingItem.tracks = [...existingItem.tracks, ...newTracks];
+                    existingItem.title = title;
+                    existingItem.artist = artist;
+                    existingItem.coverUrl = coverUrl;
+                    
+                    saveToLocalStorage();
+                    selectAlbum(itemId);
+                    
+                    toastMessage.textContent = `Добавлено ${newTracks.length} ${newTracks.length === 1 ? 'новый трек' : 'новых треков'}`;
+                    showToast(false);
+                } else {
+                    // No new tracks, just select
+                    selectAlbum(itemId);
+                }
+                inputLink.value = '';
+                return;
+            }
 
             // Save new item
             const newItem = {
